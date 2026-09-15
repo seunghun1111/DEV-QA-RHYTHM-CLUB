@@ -25,7 +25,7 @@ export async function POST(request:Request){
  const name=typeof input.name==='string'?input.name.trim().slice(0,16):'익명의 공범';
  try{const db=roomStore();
   const day=new Date(now).toISOString().slice(0,10);
-  const usage=await db.prepare('INSERT INTO usage_daily (day,requests) VALUES (?,1) ON CONFLICT(day) DO UPDATE SET requests = requests + 1 RETURNING requests').bind(day).first<{requests:number}>();
+  const usage=await db.prepare('INSERT INTO usage_daily (day,requests) VALUES (?,1) ON CONFLICT(day) DO UPDATE SET requests = requests + 1 WHERE requests < ? RETURNING requests').bind(day,DAILY_MULTIPLAYER_LIMIT).first<{requests:number}>();
   if(!usage||usage.requests>DAILY_MULTIPLAYER_LIMIT)return fail('오늘의 무료 멀티 사용량을 모두 사용했어요. 내일 다시 연결해 주세요.',429);
   if(input.action==='create'){
    const track=Number(input.track);if(!Number.isInteger(track)||!tracks[track]||!['easy','normal','hard'].includes(String(input.level))||!['coop','battle'].includes(String(input.mode)))return fail('곡과 모드를 다시 선택해 주세요.');
