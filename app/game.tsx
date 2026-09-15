@@ -19,8 +19,8 @@ export default function Game({track,level,settings,startDelay,multiplayer,room,s
  const hitRef=useRef(hit);hitRef.current=hit;
  useEffect(()=>{let alive=true,frame=0,lastUi=0,lastSend=0;notes.current=chart(track,level);stats.current=freshStats();stats.current.total=notes.current.length;
   const down=(e:KeyboardEvent)=>{if(e.repeat||e.metaKey||e.ctrlKey||e.altKey)return;if(multiplayer&&/^Digit[1-4]$/.test(e.code)&&(!settings.keys.includes(e.code)||e.shiftKey)){e.preventDefault();live.current.onAttack(Number(e.code.slice(-1)),{...stats.current});return;}const lane=penaltyKeys(settings.keys,getEffects()).indexOf(e.code);if(lane>=0){e.preventDefault();pressed.current.add(lane);hitRef.current(lane);}};
-  const up=(e:KeyboardEvent)=>pressed.current.delete(penaltyKeys(settings.keys,getEffects()).indexOf(e.code));const blur=()=>pressed.current.clear();
-  window.addEventListener('keydown',down);window.addEventListener('keyup',up);window.addEventListener('blur',blur);
+  const up=(e:KeyboardEvent)=>{const lane=penaltyKeys(settings.keys,getEffects()).indexOf(e.code);if(lane>=0)pressed.current.delete(lane);};const blur=()=>pressed.current.clear();const visibility=()=>{if(document.hidden)pressed.current.clear();};
+  window.addEventListener('keydown',down,true);window.addEventListener('keyup',up,true);window.addEventListener('blur',blur);document.addEventListener('visibilitychange',visibility);
   unlockAudio().then(ctx=>{if(!alive)return;const audio=new Soundtrack(track,ctx,settings.volume);sound.current=audio;audio.play(startDelay??2);
    const render=()=>{if(!alive)return;const now=audio.elapsed(),stamp=performance.now(),s=stats.current,serverNow=Date.now()+live.current.serverOffset,r=live.current.room;
     const pending=r?(r.attacks||[]).filter(a=>a.target===r.me&&a.endsAt>serverNow):[],active=activePenalties(pending,r?.me||'',serverNow),window=judgmentWindow(active);
@@ -46,7 +46,7 @@ export default function Game({track,level,settings,startDelay,multiplayer,room,s
     if(now>duration(track)+.5){audio.stop();callbacks.current.onEnd({...s});return;}frame=requestAnimationFrame(render);
    };frame=requestAnimationFrame(render);
   }).catch(()=>setError('소리를 시작하지 못했어요. 돌아가서 다시 시작해 주세요.'));
-  return()=>{alive=false;cancelAnimationFrame(frame);sound.current?.stop();sound.current?.ctx.resume();window.removeEventListener('keydown',down);window.removeEventListener('keyup',up);window.removeEventListener('blur',blur);};
+  return()=>{alive=false;cancelAnimationFrame(frame);sound.current?.stop();sound.current?.ctx.resume();window.removeEventListener('keydown',down,true);window.removeEventListener('keyup',up,true);window.removeEventListener('blur',blur);document.removeEventListener('visibilitychange',visibility);pressed.current.clear();};
  },[]);
  async function togglePause(){const audio=sound.current;if(!audio)return;if(pausedRef.current){await audio.ctx.resume();pausedRef.current=false;}else{await audio.ctx.suspend();pausedRef.current=true;}setPaused(pausedRef.current);}
  const section=time<0?'합주 준비':Math.floor(time/(60/track.bpm*8))%4===2?'같은 패턴, 다시 재현해 주세요':'비밀 합주 진행 중';
