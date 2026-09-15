@@ -6,11 +6,12 @@ import {chart,duration,keyLabel,type Track,type Difficulty,type Note} from '@/li
 import {activePenalties,penaltyKeys,judgmentWindow,extraNotes,penaltyInfo,ATTACK_COMBO,type Attack} from '@/lib/penalties';
 import type {RoomView} from '@/lib/room-types';
 import {Soundtrack,unlockAudio} from '@/lib/audio';
+import {YouTubeSoundtrack,type PlaybackClock} from '@/lib/youtube-soundtrack';
 export type Stats={perfect:number;good:number;miss:number;combo:number;maxCombo:number;score:number;accuracy:number;total:number;comboCharges:number};
 export type Settings={keys:string[];speed:number;playbackRate:number;volume:number;offset:number};
 export const freshStats=():Stats=>({perfect:0,good:0,miss:0,combo:0,maxCombo:0,score:0,accuracy:100,total:0,comboCharges:0});
 export default function Game({track,level,settings,startDelay,multiplayer,room,serverOffset,onAttack,onEnd,onQuit,onProgress}:{track:Track;level:Difficulty;settings:Settings;startDelay?:number;multiplayer:boolean;room:RoomView|null;serverOffset:number;onAttack:(slot:number,s:Stats)=>void;onEnd:(s:Stats)=>void;onQuit:()=>void;onProgress?:(s:Stats)=>void}){
- const canvas=useRef<HTMLCanvasElement>(null),sound=useRef<Soundtrack|null>(null),notes=useRef<Note[]>([]),stats=useRef(freshStats()),pressed=useRef(new Set<number>()),held=useRef(new Map<string,number>()),flash=useRef<number[]>(Array(settings.keys.length).fill(0)),judgment=useRef({text:'READY',at:0});
+ const canvas=useRef<HTMLCanvasElement>(null),youtubeHost=useRef<HTMLDivElement>(null),sound=useRef<PlaybackClock|null>(null),notes=useRef<Note[]>([]),stats=useRef(freshStats()),pressed=useRef(new Set<number>()),held=useRef(new Map<string,number>()),flash=useRef<number[]>(Array(settings.keys.length).fill(0)),judgment=useRef({text:'READY',at:0});
  const live=useRef({room,serverOffset,onAttack});live.current={room,serverOffset,onAttack};const processedAttacks=useRef(new Set<string>());const previousShuffle=useRef(false);
  const [effects,setEffects]=useState<Attack[]>([]),[incoming,setIncoming]=useState<Attack[]>([]),[liveKeys,setLiveKeys]=useState(settings.keys),[workTime,setWorkTime]=useState(0);
  const getEffects=()=>{const r=live.current.room;return r?activePenalties(r.attacks||[],r.me,Date.now()+live.current.serverOffset):[];};
@@ -22,7 +23,7 @@ export default function Game({track,level,settings,startDelay,multiplayer,room,s
   const down=(e:KeyboardEvent)=>{if(e.metaKey||e.ctrlKey||e.altKey||held.current.has(e.code))return;if(multiplayer&&/^Digit[1-4]$/.test(e.code)&&(!settings.keys.includes(e.code)||e.shiftKey)){e.preventDefault();live.current.onAttack(Number(e.code.slice(-1)),{...stats.current});return;}const lane=penaltyKeys(settings.keys,getEffects()).indexOf(e.code);if(lane>=0){e.preventDefault();held.current.set(e.code,lane);pressed.current.add(lane);hitRef.current(lane);}};
   const up=(e:KeyboardEvent)=>{const lane=held.current.get(e.code);if(lane!==undefined){held.current.delete(e.code);pressed.current.delete(lane);}};const blur=clearHeld;const visibility=()=>{if(document.hidden)clearHeld();};
   window.addEventListener('keydown',down,true);window.addEventListener('keyup',up,true);window.addEventListener('blur',blur);document.addEventListener('visibilitychange',visibility);
-  unlockAudio().then(ctx=>{if(!alive)return;const audio=new Soundtrack(track,ctx,settings.volume,settings.playbackRate);sound.current=audio;audio.play(startDelay??2);
+  const start=async()=>{let audio:PlaybackClock;if(track.youtubeId){if(!youtubeHost.current)throw new Error('YouTube player host unavailable');const youtube=new YouTubeSoundtrack(track.youtubeId,youtubeHost.current,settings.playbackRate);await youtube.ready();audio=youtube;}else{const ctx=await unlockAudio();audio=new Soundtrack(track,ctx,settings.volume,settings.playbackRate);}if(!alive){audio.stop();return;}sound.current=audio;audio.play(startDelay??2);
    const render=()=>{if(!alive)return;const now=audio.elapsed(),stamp=performance.now(),s=stats.current,serverNow=Date.now()+live.current.serverOffset,r=live.current.room;
     const pending=r?(r.attacks||[]).filter(a=>a.target===r.me&&a.endsAt>serverNow):[],active=activePenalties(pending,r?.me||'',serverNow),window=judgmentWindow(active);
     for(const attack of pending)if(!processedAttacks.current.has(attack.id)){
@@ -44,10 +45,10 @@ export default function Game({track,level,settings,startDelay,multiplayer,room,s
      for(const n of notes.current){if(n.hit||n.miss)continue;const y=target-(n.t-now+settings.offset/1000)/travel*target;if(y< -20||y>h)continue;draw.fillStyle=n.extra?'#ffac70':colors[n.lane];draw.shadowColor=colors[n.lane];draw.shadowBlur=10;draw.fillRect(n.lane*laneW+9,y-5,laneW-18,10);draw.shadowBlur=0;if(n.extra){draw.fillStyle='#44220e';draw.font='bold 12px monospace';draw.textAlign='center';draw.fillText('+',n.lane*laneW+laneW/2,y+4);}draw.fillStyle='#ffffff80';draw.fillRect(n.lane*laneW+9,y-5,laneW-18,2);}
      draw.fillStyle='#e7f4dd';draw.fillRect(0,target,w,2);if(stamp-judgment.current.at<650){draw.textAlign='center';draw.font='bold 22px monospace';draw.fillStyle=judgment.current.text==='재현 불가'?'#ff92b8':'#b9f36b';draw.fillText(judgment.current.text,w/2,h*.4);if(s.combo>1){draw.font='bold 48px monospace';draw.fillStyle='#fff';draw.fillText(String(s.combo),w/2,h*.4+57);}}
     }
-    if(audio.element.ended||now>duration(track)+.5){audio.stop();callbacks.current.onEnd({...s});return;}frame=requestAnimationFrame(render);
+    if(audio.ended()||now>duration(track)+.5){audio.stop();callbacks.current.onEnd({...s});return;}frame=requestAnimationFrame(render);
    };frame=requestAnimationFrame(render);
-  }).catch(()=>setError('소리를 시작하지 못했어요. 돌아가서 다시 시작해 주세요.'));
-  return()=>{alive=false;cancelAnimationFrame(frame);sound.current?.stop();void sound.current?.ctx.resume();window.removeEventListener('keydown',down,true);window.removeEventListener('keyup',up,true);window.removeEventListener('blur',blur);document.removeEventListener('visibilitychange',visibility);clearHeld();};
+  };void start().catch(()=>setError('소리를 시작하지 못했어요. 돌아가서 다시 시작해 주세요.'));
+  return()=>{alive=false;cancelAnimationFrame(frame);sound.current?.stop();window.removeEventListener('keydown',down,true);window.removeEventListener('keyup',up,true);window.removeEventListener('blur',blur);document.removeEventListener('visibilitychange',visibility);clearHeld();};
  },[]);
  async function togglePause(){const audio=sound.current;if(!audio)return;if(pausedRef.current){await audio.resume();pausedRef.current=false;}else{audio.pause();pausedRef.current=true;}setPaused(pausedRef.current);}
  const section=time<0?'합주 준비':Math.floor(time/(60/track.bpm*8))%4===2?'같은 패턴, 다시 재현해 주세요':'비밀 합주 진행 중';
@@ -64,7 +65,7 @@ export default function Game({track,level,settings,startDelay,multiplayer,room,s
 </header>
 <div className="song-progress">
 <i style={{width:`${Math.max(0,time/duration(track)*100)}%`}}/>
-</div>{multiplayer&&<div className="attack-console">
+</div>{track.youtubeId&&<div className="youtube-game-player" ref={youtubeHost} aria-label={`${track.artist} ${track.title} YouTube 플레이어`}/>} {multiplayer&&<div className="attack-console">
 <div className="attack-charge">
 <span className="eyebrow">업무 떠넘기기</span>
 <b>{ammo}<small> / 3</small>

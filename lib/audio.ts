@@ -8,5 +8,7 @@ export class Soundtrack {
   elapsed(){return this.element.currentTime-(this.ctx.currentTime<this.start?(this.start-this.ctx.currentTime)*this.playbackRate:0);}
   pause(){this.element.pause();}
   async resume(){await this.ctx.resume();await this.element.play();}
+  ended(){return this.element.ended;}
+  duration(){return this.element.duration||this.track.duration;}
   stop(){this.stopped=true;clearTimeout(this.timer);this.element.pause();this.element.removeAttribute('src');this.element.load();this.source.disconnect();this.master.disconnect();}
 }
