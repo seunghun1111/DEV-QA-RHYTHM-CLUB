@@ -12,11 +12,11 @@ export const ATTACK_COMBO=30;
 export function activePenalties(attacks:Attack[],me:string,now:number){return attacks.filter(a=>a.target===me&&a.startsAt<=now&&a.endsAt>now);}
 export function penaltyKeys(keys:string[],active:Attack[]){return active.some(a=>a.type==='shuffle')?[...keys].reverse():keys;}
 export function judgmentWindow(active:Attack[]){return active.some(a=>a.type==='strict')?{perfect:.04,good:.1}:{perfect:.065,good:.15};}
-export function extraNotes(track:Track,start:number,end:number,existing:Note[],seed:number):Note[]{
+export function extraNotes(track:Track,start:number,end:number,existing:Note[],seed:number,lanes=4):Note[]{
  const interval=30/track.bpm,added:Note[]=[];
  // Place additions halfway between the original eighth-note grid.
  for(let step=Math.ceil(start/interval);step*interval+interval/2<end;step++){
-  const t=step*interval+interval/2,lane=(step+seed)%4;
+  const t=step*interval+interval/2,lane=(step+seed)%lanes;
   if(!existing.some(n=>n.lane===lane&&Math.abs(n.t-t)<.12))added.push({t,lane,extra:true});
  }
  return added;

@@ -1,0 +1,14 @@
+.choice-grid,.theme-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin-bottom:18px}
+.theme-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.choice-grid button,.theme-grid button{border:1px solid #465348;border-radius:6px;background:#1c251f;color:#aab7ab;padding:10px 6px;font:12px ui-monospace,monospace}
+.choice-grid button.selected,.theme-grid button.selected{border-color:var(--accent,#b9f36b);color:var(--accent,#b9f36b);background:#283225}
+.nickname-editor{display:grid;grid-template-columns:1fr auto;gap:8px}
+.kick-button{margin-left:8px;border:1px solid #a55f54;border-radius:4px;padding:3px 7px;color:#ff9e91;font-size:11px}
+.modal-keys{grid-template-columns:repeat(auto-fit,minmax(62px,1fr))}
+.youtube-player{margin:0 14px 14px;border:1px solid #3e4b40;border-radius:8px;overflow:hidden;background:#0d1110}.youtube-player iframe{display:block;width:100%;height:152px;border:0}.youtube-player a{display:flex;align-items:center;justify-content:center;gap:5px;padding:9px;color:var(--accent,#b9f36b);font-size:11px}
+.theme-terminal{--accent:#b9f36b}
+.theme-intellij{--accent:#c77dff}.theme-intellij .app-shell,.theme-intellij{background:#15131c}.theme-intellij .brand-mark,.theme-intellij .start-button{background:#c77dff}.theme-intellij .track-panel,.theme-intellij .session-panel{border-color:#493d5b;background:#191720}
+.theme-claude{--accent:#d97757}.theme-claude .app-shell,.theme-claude{background:#191715}.theme-claude .brand-mark,.theme-claude .start-button{background:#d97757}.theme-claude .track-panel,.theme-claude .session-panel{border-color:#57423a;background:#201b18}
+.theme-codex{--accent:#10a37f}.theme-codex .app-shell,.theme-codex{background:#0e1514}.theme-codex .brand-mark,.theme-codex .start-button{background:#10a37f}.theme-codex .track-panel,.theme-codex .session-panel{border-color:#2d554b;background:#13201d}
+.theme-intellij button:focus-visible{outline-color:#c77dff}.theme-claude button:focus-visible{outline-color:#d97757}.theme-codex button:focus-visible{outline-color:#10a37f}
+@media(max-width:700px){.choice-grid{grid-template-columns:repeat(5,1fr)}.modal-keys>button{font-size:12px;padding:4px}}

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./enhancements.css";
 
 export const metadata: Metadata = {
   title: "재현 부탁드립니다 · DEV × QA RHYTHM CLUB",

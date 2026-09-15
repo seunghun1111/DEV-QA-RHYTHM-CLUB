@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 const origin='http://127.0.0.1:5173';
 function client(){let cookie='';return async(action,data={},expected=200)=>{const response=await fetch(origin+'/api/rooms',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},body:JSON.stringify({action,...data})});if(response.headers.get('set-cookie'))cookie=response.headers.get('set-cookie').split(';')[0];const result=await response.json();assert.equal(response.status,expected,result.error);return result;};}
 const host=client(),qa=client(),third=client(),fourth=client(),outsider=client();
-const created=await host('create',{name:'DEV test',track:3,level:'normal',mode:'coop'});
+const created=await host('create',{name:'DEV test',track:3,level:'normal',mode:'coop',playbackRate:1});
 assert.match(created.code,/^[A-Z2-9]{7}$/);const code=created.code;
 await outsider('sync',{code},401);
 await qa('join',{name:'QA test',code});

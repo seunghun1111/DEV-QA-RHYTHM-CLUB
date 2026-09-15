@@ -30,15 +30,16 @@ export async function POST(request:Request){
   if(input.action==='create'){
    const track=Number(input.track);if(!Number.isInteger(track)||!tracks[track]||!['easy','normal','hard'].includes(String(input.level))||!['coop','battle'].includes(String(input.mode)))return fail('곡과 모드를 다시 선택해 주세요.');
    const code=Array.from(crypto.getRandomValues(new Uint8Array(7))).map(n=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[n%32]).join('');
-   const state:State={code,host:me,track,level:input.level as State['level'],mode:input.mode as State['mode'],players:[{id:me,slot:1,name:name||'익명의 공범',ready:false,seen:now,finished:false,ammo:0,chargesEarned:0,lastAttackAt:0}],startedAt:null,round:crypto.randomUUID(),attacks:[]};
+   const playbackRate=Number(input.playbackRate);if(!Number.isFinite(playbackRate)||playbackRate<.5||playbackRate>1.5)return fail('배속 설정을 다시 확인해 주세요.');
+   const state:State={code,host:me,track,level:input.level as State['level'],mode:input.mode as State['mode'],playbackRate,players:[{id:me,slot:1,name:name||'익명의 공범',ready:false,seen:now,finished:false,ammo:0,chargesEarned:0,lastAttackAt:0}],startedAt:null,round:crypto.randomUUID(),attacks:[]};
    await db.prepare('INSERT INTO rooms (code,state,version,expires) VALUES (?,?,0,?)').bind(code,JSON.stringify(state),now+7200000).run();return respond(state);
   }
   const code=String(input.code||'').toUpperCase();if(!/^[A-Z2-9]{7}$/.test(code))return fail('7자리 방 코드를 확인해 주세요.');
   for(let retry=0;retry<5;retry++){
    const row=await db.prepare('SELECT state,version,expires FROM rooms WHERE code = ?').bind(code).first<{state:string;version:number;expires:number}>();if(!row||row.expires<now)return fail('방이 없거나 만료되었어요. 새 방을 만들어 주세요.',404);
-   const room=JSON.parse(row.state) as State;room.attacks??=[];room.players.forEach((p,i)=>{p.slot??=i+1;p.ammo??=0;p.chargesEarned??=0;p.lastAttackAt??=0;});let player=room.players.find(p=>p.id===me);
+   const room=JSON.parse(row.state) as State;room.attacks??=[];room.playbackRate??=1;room.players.forEach((p,i)=>{p.slot??=i+1;p.ammo??=0;p.chargesEarned??=0;p.lastAttackAt??=0;});let player=room.players.find(p=>p.id===me);
    if(!player&&input.action!=='join')return fail('먼저 방에 참여해 주세요.',403);
-   if(room.startedAt&&now>room.startedAt+duration(tracks[room.track])*1000+6000){room.startedAt=null;room.players.forEach(p=>p.ready=false);}
+   if(room.startedAt&&now>room.startedAt+duration(tracks[room.track])/room.playbackRate*1000+6000){room.startedAt=null;room.players.forEach(p=>p.ready=false);}
    if(input.action==='join'){
     if(room.startedAt)return fail('합주 중인 방이에요. 곡이 끝난 후 참여해 주세요.',409);
     room.players=room.players.filter(p=>now-p.seen<60000||p.id===me);
@@ -48,6 +49,12 @@ export async function POST(request:Request){
    if(!room.players.some(p=>p.id===room.host&&now-p.seen<60000))room.host=me;
    switch(input.action){
     case 'join':break;
+    case 'rename':if(room.startedAt)return fail('합주가 끝난 뒤 닉네임을 변경해 주세요.',409);if(!name)return fail('닉네임을 입력해 주세요.');player.name=name;break;
+    case 'kick':{
+     if(me!==room.host)return fail('방장만 강퇴할 수 있어요.',403);if(room.startedAt)return fail('합주 중에는 강퇴할 수 없어요.',409);
+     const target=room.players.find(p=>p.id===input.target);if(!target||target.id===me)return fail('강퇴할 사용자를 확인해 주세요.');if(now-target.seen<=15000)return fail('현재 연결된 사용자는 강퇴할 수 없어요.',409);
+     room.players=room.players.filter(p=>p.id!==target.id);room.attacks=room.attacks.filter(a=>a.from!==target.id&&a.target!==target.id);break;
+    }
     case 'ready':if(room.startedAt)return fail('이미 합주 중이에요.',409);player.ready=!player.ready;player.finished=false;player.stats=undefined;break;
     case 'start':if(me!==room.host)return fail('방장만 시작할 수 있어요.',403);if(room.startedAt)return fail('이미 합주 중이에요.',409);room.players=room.players.filter(p=>now-p.seen<15000);if(room.players.length<2||!room.players.every(p=>p.ready))return fail('두 명 이상 모두 준비해야 시작할 수 있어요.',409);room.startedAt=now+5500;room.round=crypto.randomUUID();room.attacks=[];room.players.forEach(p=>{p.finished=false;p.stats=undefined;p.ammo=0;p.chargesEarned=0;p.lastAttackAt=0;});break;
     case 'sync':case 'finish':case 'attack':{
@@ -59,7 +66,7 @@ export async function POST(request:Request){
       }
      }
      if(input.action==='attack'){
-      if(!room.startedAt||now<room.startedAt||now>room.startedAt+duration(tracks[room.track])*1000||player.finished)return fail('연주 중에만 업무를 보낼 수 있어요.',409);
+      if(!room.startedAt||now<room.startedAt||now>room.startedAt+duration(tracks[room.track])/room.playbackRate*1000||player.finished)return fail('연주 중에만 업무를 보낼 수 있어요.',409);
       if(input.round!==room.round)return fail('이전 합주의 공격이에요.',409);
       const requestId=String(input.requestId||'');if(!/^[0-9a-f-]{36}$/.test(requestId))return fail('공격 요청을 확인해 주세요.');
       if(room.attacks.some(a=>a.id===requestId&&a.from===me))return respond(room);
@@ -74,7 +81,7 @@ export async function POST(request:Request){
       room.attacks=room.attacks.filter(a=>a.endsAt>now-15000).slice(-40);
       room.attacks.push({id:requestId,from:me,fromName:player.name,target:target.id,type,startsAt:now+1800,endsAt:now+9800});
      }
-     if(input.action==='finish'&&room.startedAt&&now>=room.startedAt+duration(tracks[room.track])*1000)player.finished=true;
+     if(input.action==='finish'&&room.startedAt&&now>=room.startedAt+duration(tracks[room.track])/room.playbackRate*1000)player.finished=true;
      break;
     }
     case 'leave':room.players=room.players.filter(p=>p.id!==me);if(room.host===me)room.host=room.players[0]?.id||'';break;
