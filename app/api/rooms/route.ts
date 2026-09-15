@@ -2,12 +2,14 @@ import {roomStore} from '@/lib/room-store';
 import type {RoomView} from '@/lib/room-types';
 import {duration,tracks} from '@/lib/tracks';
 import {penaltyTypes,ATTACK_COMBO} from '@/lib/penalties';
+import {hasSiteAccess} from '@/lib/site-access';
 type State=Omit<RoomView,'me'|'serverTime'>;
 const cookieName='repro_player';
 const fail=(error:string,status=400)=>Response.json({error},{status,headers:{'Cache-Control':'no-store'}});
 export async function POST(request:Request){
  const url=new URL(request.url),origin=request.headers.get('origin');
  if(!origin||origin!==url.origin)return fail('다른 사이트에서는 이 방에 요청할 수 없어요.',403);
+ if(!(await hasSiteAccess(request)))return fail('사내 입장 코드 인증이 필요해요.',401);
  if(!request.headers.get('content-type')?.startsWith('application/json'))return fail('올바르지 않은 요청이에요.');
  if(Number(request.headers.get('content-length')||0)>4096)return fail('요청이 너무 커요.',413);
  const raw=await request.text();if(raw.length>4096)return fail('요청이 너무 커요.',413);
