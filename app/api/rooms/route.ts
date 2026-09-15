@@ -5,6 +5,9 @@ import {penaltyTypes,ATTACK_COMBO} from '@/lib/penalties';
 import {hasSiteAccess} from '@/lib/site-access';
 type State=Omit<RoomView,'me'|'serverTime'>;
 const cookieName='repro_player';
+// One accepted multiplayer request can write both this counter and room state.
+// 40k/day leaves a 20k-write margin below the Workers Free D1 daily allowance.
+const DAILY_MULTIPLAYER_LIMIT=40000;
 const fail=(error:string,status=400)=>Response.json({error},{status,headers:{'Cache-Control':'no-store'}});
 export async function POST(request:Request){
  const url=new URL(request.url),origin=request.headers.get('origin');
@@ -21,6 +24,9 @@ export async function POST(request:Request){
  const now=Date.now();const respond=(room:State)=>Response.json({...room,me,serverTime:Date.now()},{headers:{'Cache-Control':'no-store',...(!validToken?{'Set-Cookie':`${cookieName}=${secret}; HttpOnly; SameSite=Strict; Path=/; Max-Age=7200${url.protocol==='https:'?'; Secure':''}`}:{})}});
  const name=typeof input.name==='string'?input.name.trim().slice(0,16):'익명의 공범';
  try{const db=roomStore();
+  const day=new Date(now).toISOString().slice(0,10);
+  const usage=await db.prepare('INSERT INTO usage_daily (day,requests) VALUES (?,1) ON CONFLICT(day) DO UPDATE SET requests = requests + 1 RETURNING requests').bind(day).first<{requests:number}>();
+  if(!usage||usage.requests>DAILY_MULTIPLAYER_LIMIT)return fail('오늘의 무료 멀티 사용량을 모두 사용했어요. 내일 다시 연결해 주세요.',429);
   if(input.action==='create'){
    const track=Number(input.track);if(!Number.isInteger(track)||!tracks[track]||!['easy','normal','hard'].includes(String(input.level))||!['coop','battle'].includes(String(input.mode)))return fail('곡과 모드를 다시 선택해 주세요.');
    const code=Array.from(crypto.getRandomValues(new Uint8Array(7))).map(n=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[n%32]).join('');
