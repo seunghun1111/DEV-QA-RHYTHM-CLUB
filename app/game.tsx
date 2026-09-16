@@ -21,7 +21,7 @@ export default function Game({track,level,settings,startDelay,multiplayer,room,s
  const hitRef=useRef(hit);hitRef.current=hit;
  useEffect(()=>{let alive=true,frame=0,lastUi=0,lastSend=0;stats.current=freshStats();
   const clearHeld=()=>{held.current.clear();pressed.current.clear();};
-  const down=(e:KeyboardEvent)=>{if(e.metaKey||e.ctrlKey||e.altKey||held.current.has(e.code))return;if(multiplayer&&/^Digit[1-4]$/.test(e.code)&&(!settings.keys.includes(e.code)||e.shiftKey)){e.preventDefault();live.current.onAttack(Number(e.code.slice(-1)),{...stats.current});return;}const lane=penaltyKeys(settings.keys,getEffects()).indexOf(e.code);if(lane>=0){e.preventDefault();held.current.set(e.code,lane);pressed.current.add(lane);hitRef.current(lane);}};
+  const down=(e:KeyboardEvent)=>{if(e.code==='Escape'&&!multiplayer){e.preventDefault();e.stopPropagation();if(!e.repeat)void togglePause();return;}if(e.metaKey||e.ctrlKey||e.altKey||held.current.has(e.code))return;if(multiplayer&&/^Digit[1-4]$/.test(e.code)&&(!settings.keys.includes(e.code)||e.shiftKey)){e.preventDefault();live.current.onAttack(Number(e.code.slice(-1)),{...stats.current});return;}const lane=penaltyKeys(settings.keys,getEffects()).indexOf(e.code);if(lane>=0){e.preventDefault();held.current.set(e.code,lane);pressed.current.add(lane);hitRef.current(lane);}};
   const release=(lane:number)=>{const note=holds.current.get(lane),now=sound.current?.elapsed()??0;if(note?.endT&&now<note.endT-.14){note.holding=false;note.miss=true;stats.current.miss++;stats.current.combo=0;judgment.current={text:'HOLD 놓침',at:performance.now()};}else if(note){note.holding=false;}holds.current.delete(lane);pressed.current.delete(lane);};
   const up=(e:KeyboardEvent)=>{const lane=held.current.get(e.code);if(lane!==undefined){held.current.delete(e.code);release(lane);}};const blur=clearHeld;const visibility=()=>{if(document.hidden)clearHeld();};
   window.addEventListener('keydown',down,true);window.addEventListener('keyup',up,true);window.addEventListener('blur',blur);document.addEventListener('visibilitychange',visibility);
@@ -52,7 +52,7 @@ export default function Game({track,level,settings,startDelay,multiplayer,room,s
   };void start().catch(()=>setError('소리를 시작하지 못했어요. 돌아가서 다시 시작해 주세요.'));
   return()=>{alive=false;cancelAnimationFrame(frame);sound.current?.stop();window.removeEventListener('keydown',down,true);window.removeEventListener('keyup',up,true);window.removeEventListener('blur',blur);document.removeEventListener('visibilitychange',visibility);clearHeld();};
  },[]);
- async function togglePause(){const audio=sound.current;if(!audio)return;if(pausedRef.current){await audio.resume();pausedRef.current=false;}else{audio.pause();pausedRef.current=true;}setPaused(pausedRef.current);}
+ async function togglePause(){if(multiplayer)return;const audio=sound.current;if(!audio)return;if(pausedRef.current){await audio.resume();pausedRef.current=false;}else{audio.pause();pausedRef.current=true;}setPaused(pausedRef.current);}
  const section=time<0?'합주 준비':Math.floor(time/(60/track.bpm*8))%4===2?'같은 패턴, 다시 재현해 주세요':'비밀 합주 진행 중';
  const me=room?.players.find(p=>p.id===room.me);const ammo=Math.min(3,(me?.ammo??0)+Math.max(0,display.comboCharges-(me?.chargesEarned??0)));
  return <div className={`game-view ${incoming.length?'under-attack':''}`}>
@@ -61,7 +61,7 @@ export default function Game({track,level,settings,startDelay,multiplayer,room,s
 <span className="eyebrow">ISSUE #{String(track.id+1).padStart(3,'0')} · {level.toUpperCase()}</span>
 <h2>{track.title}</h2>
 </div>
-<div className="game-actions">{!multiplayer&&<Button variant="outline" onClick={togglePause} aria-label={paused?'계속 연주':'일시정지'}>{paused?<Play/>:<Pause/>}</Button>}<Button variant="outline" onClick={onQuit}>
+<div className="game-actions">{!multiplayer&&<Button variant="outline" onClick={togglePause} aria-label={paused?'계속 연주':'일시정지'} title="Esc로 일시정지 또는 재개">{paused?<Play/>:<Pause/>}</Button>}<Button variant="outline" onClick={onQuit}>
 <X/> 나가기</Button>
 </div>
 </header>
