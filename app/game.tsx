@@ -7,7 +7,7 @@ import {activePenalties,penaltyKeys,judgmentWindow,extraNotes,penaltyInfo,ATTACK
 import type {RoomView} from '@/lib/room-types';
 import {Soundtrack,unlockAudio} from '@/lib/audio';
 import {YouTubeSoundtrack,type PlaybackClock} from '@/lib/youtube-soundtrack';
-import {generateBeatmap} from '@/lib/beatmap';
+import {generateBeatmap,removeHoldConflicts} from '@/lib/beatmap';
 export type Stats={perfect:number;good:number;miss:number;combo:number;maxCombo:number;score:number;accuracy:number;total:number;comboCharges:number};
 export type Settings={keys:string[];speed:number;playbackRate:number;volume:number;offset:number};
 export const freshStats=():Stats=>({perfect:0,good:0,miss:0,combo:0,maxCombo:0,score:0,accuracy:100,total:0,comboCharges:0});
@@ -32,7 +32,7 @@ export default function Game({track,level,settings,startDelay,multiplayer,room,s
      processedAttacks.current.add(attack.id);
      if(attack.type==='burst'){
       const from=Math.max(now+1.8,now+(attack.startsAt-serverNow)/1000),to=Math.min(duration(track)-.5,now+(attack.endsAt-serverNow)/1000);
-      notes.current.push(...extraNotes(track,from,to,notes.current,attack.id.charCodeAt(0),settings.keys.length));notes.current.sort((a,b)=>a.t-b.t);s.total=notes.current.length;
+      notes.current=removeHoldConflicts([...notes.current,...extraNotes(track,from,to,notes.current,attack.id.charCodeAt(0),settings.keys.length)]);s.total=notes.current.length;
      }
     }
     const shuffled=active.some(a=>a.type==='shuffle');if(shuffled!==previousShuffle.current){clearHeld();previousShuffle.current=shuffled;}
