@@ -1,4 +1,5 @@
-export type YoutubeChartTrack={artist:string;title:string;streams:string;videoId?:string;bpm?:number;duration?:number;beatOffset?:number};
+export const YOUTUBE_CHART_VERSION='yt-2026-09-16.1';
+export type YoutubeChartTrack={artist:string;title:string;streams:string;videoId?:string;bpm?:number;duration?:number;beatOffset?:number;chartVersion?:string;audioOffsetMs?:number};
 export const youtubeKoreaTop20:readonly YoutubeChartTrack[] = [
   {artist:'LISA',title:'SaWaDiKa',streams:'7.6M',videoId:'FyS5dAywkEo',bpm:100,duration:183,beatOffset:.18},
   {artist:'ATEEZ',title:'BAD',streams:'3.6M',videoId:'OHxYsZgq_6U',bpm:124,duration:191,beatOffset:.2},

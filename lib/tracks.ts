@@ -1,4 +1,4 @@
-export type Track={id:number;title:string;subtitle:string;genre:string;bpm:number;beatOffset:number;duration:number;audio:string;color:string;tag:string;story:string;melody:readonly number[];youtubeId?:string;artist?:string};
+export type Track={id:number;title:string;subtitle:string;genre:string;bpm:number;beatOffset:number;duration:number;audio:string;color:string;tag:string;story:string;melody:readonly number[];youtubeId?:string;artist?:string;chartVersion?:string;audioOffsetMs?:number};
 export const tracks = [
   {id:0,title:'Gilded Velocity',subtitle:'Golden speed',genre:'ELECTRONIC / DRIVE',bpm:100,beatOffset:.27,duration:179.183,audio:'/audio/gilded-velocity.mp4',color:'#b9f36b',tag:'FULL THROTTLE',story:'금빛 트랙 위를 일정한 속도로 질주하는 시간.',melody:[0,7,10,14,7,3,10,7]},
   {id:1,title:'Against the Great Mountain',subtitle:'Climb the impossible',genre:'CINEMATIC / ROCK',bpm:149,beatOffset:.26,duration:176.978,audio:'/audio/against-the-great-mountain.mp4',color:'#75dbff',tag:'UPHILL BUILD',story:'거대한 장벽 앞에서도 박자를 놓치지 않는다.',melody:[0,3,7,12,10,7,3,7]},

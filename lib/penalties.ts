@@ -12,12 +12,25 @@ export const ATTACK_COMBO=30;
 export function activePenalties(attacks:Attack[],me:string,now:number){return attacks.filter(a=>a.target===me&&a.startsAt<=now&&a.endsAt>now);}
 export function penaltyKeys(keys:string[],active:Attack[]){return active.some(a=>a.type==='shuffle')?[...keys].reverse():keys;}
 export function judgmentWindow(active:Attack[]){return active.some(a=>a.type==='strict')?{perfect:.04,good:.1}:{perfect:.065,good:.15};}
+/** A tap must never ask the player to release a hold that is still occupying the lane. */
+export function laneIsPlayableAt(notes:Note[],lane:number,t:number,margin=.12){
+ return !notes.some(note=>note.lane===lane&&(
+  Math.abs(note.t-t)<margin||
+  (note.endT!==undefined&&t>note.t-margin&&t<note.endT+margin)
+ ));
+}
 export function extraNotes(track:Track,start:number,end:number,existing:Note[],seed:number,lanes=4):Note[]{
  const interval=30/track.bpm,added:Note[]=[];
  // Place additions halfway between the original eighth-note grid.
  for(let step=Math.ceil(start/interval);step*interval+interval/2<end;step++){
-  const t=step*interval+interval/2,lane=(step+seed)%lanes;
-  if(!existing.some(n=>n.lane===lane&&Math.abs(n.t-t)<.12))added.push({t,lane,extra:true});
+  const t=step*interval+interval/2,preferred=(step+seed)%lanes;
+  if(existing.some(n=>n.extra&&Math.abs(n.t-t)<.12))continue;
+  // Try another lane instead of placing a tap through a hold body. Include notes
+  // added in this pass so two penalty notes cannot overlap either.
+  for(let offset=0;offset<lanes;offset++){
+   const lane=(preferred+offset)%lanes;
+   if(laneIsPlayableAt([...existing,...added],lane,t)){added.push({t,lane,extra:true});break;}
+  }
  }
  return added;
 }

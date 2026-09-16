@@ -2,16 +2,17 @@
 import {useEffect,useRef,useState} from 'react';
 import {Button} from '@/components/ui/button';
 import {Pause,Play,X,Activity} from 'lucide-react';
-import {chart,duration,keyLabel,type Track,type Difficulty,type Note} from '@/lib/tracks';
+import {duration,keyLabel,type Track,type Difficulty,type Note} from '@/lib/tracks';
 import {activePenalties,penaltyKeys,judgmentWindow,extraNotes,penaltyInfo,ATTACK_COMBO,type Attack} from '@/lib/penalties';
 import type {RoomView} from '@/lib/room-types';
 import {Soundtrack,unlockAudio} from '@/lib/audio';
 import {YouTubeSoundtrack,type PlaybackClock} from '@/lib/youtube-soundtrack';
 import {generateBeatmap,removeHoldConflicts} from '@/lib/beatmap';
+import {youtubeBeatmap} from '@/lib/youtube-beatmaps';
 export type Stats={perfect:number;good:number;miss:number;combo:number;maxCombo:number;score:number;accuracy:number;total:number;comboCharges:number};
 export type Settings={keys:string[];speed:number;playbackRate:number;volume:number;offset:number};
 export const freshStats=():Stats=>({perfect:0,good:0,miss:0,combo:0,maxCombo:0,score:0,accuracy:100,total:0,comboCharges:0});
-export default function Game({track,level,settings,startDelay,multiplayer,room,serverOffset,onAttack,onEnd,onQuit,onProgress}:{track:Track;level:Difficulty;settings:Settings;startDelay?:number;multiplayer:boolean;room:RoomView|null;serverOffset:number;onAttack:(slot:number,s:Stats)=>void;onEnd:(s:Stats)=>void;onQuit:()=>void;onProgress?:(s:Stats)=>void}){
+export default function Game({track,level,settings,startDelay,multiplayer,room,serverOffset,customNotes,onAttack,onEnd,onQuit,onProgress}:{track:Track;level:Difficulty;settings:Settings;startDelay?:number;multiplayer:boolean;room:RoomView|null;serverOffset:number;customNotes?:Note[];onAttack:(slot:number,s:Stats)=>void;onEnd:(s:Stats)=>void;onQuit:()=>void;onProgress?:(s:Stats)=>void}){
  const canvas=useRef<HTMLCanvasElement>(null),youtubeHost=useRef<HTMLDivElement>(null),sound=useRef<PlaybackClock|null>(null),notes=useRef<Note[]>([]),holds=useRef(new Map<number,Note>()),stats=useRef(freshStats()),pressed=useRef(new Set<number>()),held=useRef(new Map<string,number>()),flash=useRef<number[]>(Array(settings.keys.length).fill(0)),judgment=useRef({text:'READY',at:0});
  const live=useRef({room,serverOffset,onAttack});live.current={room,serverOffset,onAttack};const processedAttacks=useRef(new Set<string>());const previousShuffle=useRef(false);
  const [effects,setEffects]=useState<Attack[]>([]),[incoming,setIncoming]=useState<Attack[]>([]),[liveKeys,setLiveKeys]=useState(settings.keys),[workTime,setWorkTime]=useState(0);
@@ -25,7 +26,7 @@ export default function Game({track,level,settings,startDelay,multiplayer,room,s
   const release=(lane:number)=>{const note=holds.current.get(lane),now=sound.current?.elapsed()??0;if(note?.endT&&now<note.endT-.14){note.holding=false;note.miss=true;stats.current.miss++;stats.current.combo=0;judgment.current={text:'HOLD 놓침',at:performance.now()};}else if(note){note.holding=false;}holds.current.delete(lane);pressed.current.delete(lane);};
   const up=(e:KeyboardEvent)=>{const lane=held.current.get(e.code);if(lane!==undefined){held.current.delete(e.code);release(lane);}};const blur=clearHeld;const visibility=()=>{if(document.hidden)clearHeld();};
   window.addEventListener('keydown',down,true);window.addEventListener('keyup',up,true);window.addEventListener('blur',blur);document.addEventListener('visibilitychange',visibility);
-  const start=async()=>{let audio:PlaybackClock;if(track.youtubeId){notes.current=chart(track,level,settings.keys.length);if(!youtubeHost.current)throw new Error('YouTube player host unavailable');const youtube=new YouTubeSoundtrack(track.youtubeId,youtubeHost.current,settings.playbackRate);await youtube.ready();audio=youtube;}else{const ctx=await unlockAudio();notes.current=await generateBeatmap(track,level,settings.keys.length,ctx);audio=new Soundtrack(track,ctx,settings.volume,settings.playbackRate);}stats.current.total=notes.current.length;if(!alive){audio.stop();return;}sound.current=audio;setLoading(false);const remaining=multiplayer&&live.current.room?.startedAt?live.current.room.startedAt-Date.now()-live.current.serverOffset:(startDelay??2)*1000;const delay=Math.max(0,remaining/1000),offset=Math.max(0,-remaining/1000*settings.playbackRate);audio.play(delay,offset);
+  const start=async()=>{let audio:PlaybackClock;if(track.youtubeId){notes.current=youtubeBeatmap(track,level,settings.keys.length);if(!youtubeHost.current)throw new Error('YouTube player host unavailable');const youtube=new YouTubeSoundtrack(track.youtubeId,youtubeHost.current,settings.playbackRate,track.audioOffsetMs??0);await youtube.ready();audio=youtube;}else{const ctx=await unlockAudio();notes.current=customNotes?.map(note=>({...note}))??await generateBeatmap(track,level,settings.keys.length,ctx);audio=new Soundtrack(track,ctx,settings.volume,settings.playbackRate);}stats.current.total=notes.current.length;if(!alive){audio.stop();return;}sound.current=audio;setLoading(false);const remaining=multiplayer&&live.current.room?.startedAt?live.current.room.startedAt-Date.now()-live.current.serverOffset:(startDelay??2)*1000;const delay=Math.max(0,remaining/1000),offset=Math.max(0,-remaining/1000*settings.playbackRate);audio.play(delay,offset);
    const render=()=>{if(!alive)return;const now=audio.elapsed(),stamp=performance.now(),s=stats.current,serverNow=Date.now()+live.current.serverOffset,r=live.current.room;
     const pending=r?(r.attacks||[]).filter(a=>a.target===r.me&&a.endsAt>serverNow):[],active=activePenalties(pending,r?.me||'',serverNow),window=judgmentWindow(active);
     for(const attack of pending)if(!processedAttacks.current.has(attack.id)){
