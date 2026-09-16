@@ -1,7 +1,8 @@
 import {generateBeatmap,validateBeatmap} from './beatmap';
 import type {Difficulty,Note,Track} from './tracks';
+import {youtubeBeatmap} from './youtube-beatmaps';
 
-export type CustomChart={id:string;title:string;sourceKind:'file'|'url';source:string;track:Track;level:Difficulty;keyCount:4|6|7|8;notes:Note[]};
+export type CustomChart={id:string;title:string;sourceKind:'file'|'url'|'built-in'|'youtube';source:string;track:Track;level:Difficulty;keyCount:4|6|7|8;notes:Note[]};
 
 function estimateTempo(buffer:AudioBuffer){
  const rate=100,hop=Math.max(1,Math.round(buffer.sampleRate/rate)),frames=Math.floor(buffer.length/hop),energy=new Float32Array(frames),onset=new Float32Array(frames);
@@ -15,16 +16,22 @@ function estimateTempo(buffer:AudioBuffer){
 
 const stableId=(value:string)=>{let hash=2166136261;for(const char of value){hash^=char.charCodeAt(0);hash=Math.imul(hash,16777619);}return hash>>>0;};
 
-export async function createCustomChart(source:string,sourceKind:'file'|'url',title:string,level:Difficulty,keyCount:4|6|7|8,context:AudioContext):Promise<CustomChart>{
+export async function createCustomChart(source:string,sourceKind:'file'|'url'|'built-in',title:string,level:Difficulty,keyCount:4|6|7|8,context:AudioContext,baseTrack?:Track):Promise<CustomChart>{
  let response:Response;try{response=await fetch(source);}catch{throw new Error('음원을 불러오지 못했어요. URL 음원은 CORS 접근을 허용해야 합니다.');}
  if(!response.ok)throw new Error(`음원을 불러오지 못했어요. HTTP ${response.status}`);
  const contentLength=Number(response.headers.get('content-length')||0);if(contentLength>80*1024*1024)throw new Error('80MB 이하 음원만 분석할 수 있어요.');
  const data=await response.arrayBuffer();if(data.byteLength>80*1024*1024)throw new Error('80MB 이하 음원만 분석할 수 있어요.');
  const buffer=await context.decodeAudioData(data);if(buffer.duration<5||buffer.duration>900)throw new Error('5초 이상 15분 이하 음원을 사용해 주세요.');
- const {bpm,beatOffset}=estimateTempo(buffer),id=`custom-${stableId(`${title}:${buffer.duration}:${bpm}:${sourceKind==='url'?source:''}`)}`;
+ const {bpm,beatOffset}=baseTrack??estimateTempo(buffer),id=`custom-${stableId(`${title}:${buffer.duration}:${bpm}:${sourceKind==='url'?source:''}`)}`;
  const track:Track={id:10000+stableId(id)%100000,title:title.trim()||'나만의 채보',subtitle:'CUSTOM CHART',genre:'USER AUTHORED',bpm,beatOffset,duration:buffer.duration,audio:source,color:'#ffd166',tag:'CUSTOM',story:'직접 분석하고 편집한 커스텀 채보입니다.',melody:[0,3,7,10,14,7,3,12]};
  const notes=await generateBeatmap(track,level,keyCount,context);
  return{id,title:track.title,sourceKind,source,track,level,keyCount,notes:validateBeatmap(notes,keyCount,level)};
+}
+
+export function createYoutubeCustomChart(track:Track,level:Difficulty,keyCount:4|6|7|8):CustomChart{
+ if(!track.youtubeId)throw new Error('YouTube 영상 ID가 필요해요.');
+ const id=`custom-youtube-${track.youtubeId}-${track.chartVersion??'v1'}-${level}-${keyCount}`;
+ return{id,title:track.title,sourceKind:'youtube',source:track.youtubeId,track:{...track,id:10000+stableId(id)%100000,tag:'CUSTOM YOUTUBE',story:'YouTube Music 채보를 직접 편집한 커스텀 채보입니다.'},level,keyCount,notes:youtubeBeatmap(track,level,keyCount)};
 }
 
 export function normalizeCustomNotes(notes:Note[],keyCount:number,level:Difficulty){return validateBeatmap(notes.map(note=>({t:Number(note.t),lane:Number(note.lane),...(Number(note.endT)>Number(note.t)?{endT:Number(note.endT)}:{})})).filter(note=>Number.isFinite(note.t)&&note.t>=0&&Number.isInteger(note.lane)),keyCount,level);}
