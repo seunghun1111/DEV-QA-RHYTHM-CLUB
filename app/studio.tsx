@@ -154,7 +154,7 @@ export default function Studio(){
 <span className="track-meta">{streams}<small>주간 재생</small>
 </span>
 {videoId?(youtubePlaying===i?<Square size={14}/>:<Play size={14}/>):<ArrowUpRight size={14}/>}
-</button>)}</div>{youtubePlaying!==null&&youtubeKoreaTop20[youtubePlaying].videoId&&<div className="youtube-player"><iframe title={`${youtubeKoreaTop20[youtubePlaying].artist} ${youtubeKoreaTop20[youtubePlaying].title} 재생`} allow="autoplay; encrypted-media; picture-in-picture" src={`https://www.youtube-nocookie.com/embed/${youtubeKoreaTop20[youtubePlaying].videoId}?autoplay=1&playsinline=1`}/><div className="youtube-actions"><Button onClick={beginYoutube}><Play size={14}/>이 곡으로 리듬 게임</Button><a href={youtubeMusicSearchUrl(youtubeKoreaTop20[youtubePlaying].artist,youtubeKoreaTop20[youtubePlaying].title)} target="_blank" rel="noreferrer">YouTube Music에서 열기 <ArrowUpRight size={13}/></a></div><p>공식 영상 시간과 노트 판정을 동기화합니다 · 솔로 베타</p></div>}
+</button>)}</div>{youtubePlaying!==null&&youtubeKoreaTop20[youtubePlaying].videoId&&<div className="youtube-player"><iframe title={`${youtubeKoreaTop20[youtubePlaying].artist} ${youtubeKoreaTop20[youtubePlaying].title} 재생`} allow="autoplay; encrypted-media; picture-in-picture" src={`https://www.youtube-nocookie.com/embed/${youtubeKoreaTop20[youtubePlaying].videoId}?autoplay=1&playsinline=1`}/><div className="youtube-actions"><Button onClick={beginYoutube}><Play size={14}/>이 곡으로 리듬 게임</Button><a href={youtubeMusicSearchUrl(youtubeKoreaTop20[youtubePlaying].artist,youtubeKoreaTop20[youtubePlaying].title)} target="_blank" rel="noreferrer">YouTube Music에서 열기 <ArrowUpRight size={13}/></a></div><p>공식 영상 시간과 노트 판정을 동기화합니다 · 솔로 및 멀티 지원</p></div>}
 <div className="chart-source">
 <div>
 <b>YOUTUBE MUSIC · KOREA</b>
