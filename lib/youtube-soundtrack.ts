@@ -1,4 +1,4 @@
-type YTPlayer={playVideo():void;pauseVideo():void;destroy():void;getCurrentTime():number;getDuration():number;getPlayerState():number;setPlaybackRate(rate:number):void};
+type YTPlayer={playVideo():void;pauseVideo():void;destroy():void;getCurrentTime():number;getDuration():number;getPlayerState():number;setPlaybackRate(rate:number):void;seekTo(seconds:number,allowSeekAhead:boolean):void};
 type YTNamespace={Player:new(element:HTMLElement,options:Record<string,unknown>)=>YTPlayer;PlayerState:{ENDED:number}};
 declare global{interface Window{YT?:YTNamespace;onYouTubeIframeAPIReady?:()=>void}}
 
@@ -14,13 +14,13 @@ function loadApi(){
  return apiPromise;
 }
 
-export interface PlaybackClock{play(delay?:number):void;elapsed():number;pause():void;resume():Promise<void>;stop():void;ended():boolean;duration():number}
+export interface PlaybackClock{play(delay?:number,offset?:number):void;elapsed():number;pause():void;resume():Promise<void>;stop():void;ended():boolean;duration():number}
 
 export class YouTubeSoundtrack implements PlaybackClock{
  player?:YTPlayer;timer?:ReturnType<typeof setTimeout>;stopped=false;isEnded=false;startAt=0;
  constructor(private videoId:string,private container:HTMLElement,private playbackRate=1){}
  async ready(){const YT=await loadApi();await new Promise<void>((resolve,reject)=>{this.player=new YT.Player(this.container,{videoId:this.videoId,width:'100%',height:'100%',playerVars:{playsinline:1,rel:0,controls:1,modestbranding:1},events:{onReady:()=>{this.player?.setPlaybackRate(this.playbackRate);resolve();},onStateChange:(event:{data:number})=>{if(event.data===YT.PlayerState.ENDED)this.isEnded=true;},onError:()=>reject(new Error('YouTube playback failed'))}});});}
- play(delay=1.4){this.startAt=performance.now()+delay*1000;this.timer=setTimeout(()=>{if(!this.stopped)this.player?.playVideo();},Math.max(0,delay*1000));}
+ play(delay=1.4,offset=0){this.startAt=performance.now()+delay*1000-offset/this.playbackRate*1000;this.timer=setTimeout(()=>{if(!this.stopped){if(offset>0)this.player?.seekTo(offset,true);this.player?.playVideo();}},Math.max(0,delay*1000));}
  elapsed(){if(performance.now()<this.startAt)return-(this.startAt-performance.now())/1000*this.playbackRate;return this.player?.getCurrentTime()??0;}
  pause(){this.player?.pauseVideo();}
  async resume(){this.player?.playVideo();}
