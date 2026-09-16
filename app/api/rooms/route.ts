@@ -33,14 +33,14 @@ export async function POST(request:Request){
   if(input.action==='create'){
    const track=Number(input.track),youtube=input.youtube===null||input.youtube===undefined?null:Number(input.youtube);if((youtube===null?(!Number.isInteger(track)||!tracks[track]):!youtubeReady(youtube))||!['easy','normal','hard'].includes(String(input.level))||!['coop','battle'].includes(String(input.mode)))return fail('곡과 모드를 다시 선택해 주세요.');
    const code=Array.from(crypto.getRandomValues(new Uint8Array(7))).map(n=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[n%32]).join('');
-   const playbackRate=Number(input.playbackRate),speed=Number(input.speed),keyCount=Number(input.keyCount);if(!Number.isFinite(playbackRate)||playbackRate<.5||playbackRate>1.5||!Number.isFinite(speed)||speed<.6||speed>2||![4,6,7,8,10].includes(keyCount))return fail('공통 플레이 설정을 다시 확인해 주세요.');
-   const state:State={code,host:me,track,youtube,level:input.level as State['level'],mode:input.mode as State['mode'],playbackRate,speed,keyCount,players:[{id:me,slot:1,name:name||'익명의 공범',ready:false,seen:now,finished:false,ammo:0,chargesEarned:0,lastAttackAt:0}],startedAt:null,round:crypto.randomUUID(),attacks:[]};
+   const playbackRate=Number(input.playbackRate),keyCount=Number(input.keyCount);if(!Number.isFinite(playbackRate)||playbackRate<.5||playbackRate>1.5||![4,6,7,8,10].includes(keyCount))return fail('공통 플레이 설정을 다시 확인해 주세요.');
+   const state:State={code,host:me,track,youtube,level:input.level as State['level'],mode:input.mode as State['mode'],playbackRate,keyCount,players:[{id:me,slot:1,name:name||'익명의 공범',ready:false,seen:now,finished:false,ammo:0,chargesEarned:0,lastAttackAt:0}],startedAt:null,round:crypto.randomUUID(),attacks:[]};
    await db.prepare('INSERT INTO rooms (code,state,version,expires) VALUES (?,?,0,?)').bind(code,JSON.stringify(state),now+7200000).run();return respond(state);
   }
   const code=String(input.code||'').toUpperCase();if(!/^[A-Z2-9]{7}$/.test(code))return fail('7자리 방 코드를 확인해 주세요.');
   for(let retry=0;retry<5;retry++){
    const row=await db.prepare('SELECT state,version,expires FROM rooms WHERE code = ?').bind(code).first<{state:string;version:number;expires:number}>();if(!row||row.expires<now)return fail('방이 없거나 만료되었어요. 새 방을 만들어 주세요.',404);
-   const room=JSON.parse(row.state) as State;const legacyKeys=(room as State&{keys?:unknown[]}).keys;room.youtube??=null;room.attacks??=[];room.playbackRate??=1;room.speed??=1;room.keyCount??=[4,6,7,8,10].includes(legacyKeys?.length??0)?legacyKeys!.length:4;delete (room as State&{keys?:unknown[]}).keys;room.players.forEach((p,i)=>{p.slot??=i+1;p.ammo??=0;p.chargesEarned??=0;p.lastAttackAt??=0;});let player=room.players.find(p=>p.id===me);
+   const room=JSON.parse(row.state) as State;const legacy=room as State&{keys?:unknown[];speed?:number},legacyKeys=legacy.keys;room.youtube??=null;room.attacks??=[];room.playbackRate??=1;room.keyCount??=[4,6,7,8,10].includes(legacyKeys?.length??0)?legacyKeys!.length:4;delete legacy.keys;delete legacy.speed;room.players.forEach((p,i)=>{p.slot??=i+1;p.ammo??=0;p.chargesEarned??=0;p.lastAttackAt??=0;});let player=room.players.find(p=>p.id===me);
    if(!player&&input.action!=='join')return fail('먼저 방에 참여해 주세요.',403);
    if(room.startedAt&&now>room.startedAt+roomDuration(room)/room.playbackRate*1000+6000){room.startedAt=null;room.players.forEach(p=>p.ready=false);}
    if(input.action==='join'){
@@ -55,9 +55,9 @@ export async function POST(request:Request){
     case 'rename':if(room.startedAt)return fail('합주가 끝난 뒤 닉네임을 변경해 주세요.',409);if(!name)return fail('닉네임을 입력해 주세요.');player.name=name;break;
     case 'configure':{
      if(me!==room.host)return fail('방장만 재현 환경을 변경할 수 있어요.',403);if(room.startedAt)return fail('합주 중에는 설정을 변경할 수 없어요.',409);
-     const track=Number(input.track),youtube=input.youtube===null||input.youtube===undefined?null:Number(input.youtube),playbackRate=Number(input.playbackRate),speed=Number(input.speed),keyCount=Number(input.keyCount);
-     if((youtube===null?(!Number.isInteger(track)||!tracks[track]):!youtubeReady(youtube))||!['easy','normal','hard'].includes(String(input.level))||!['coop','battle'].includes(String(input.mode))||!Number.isFinite(playbackRate)||playbackRate<.5||playbackRate>1.5||!Number.isFinite(speed)||speed<.6||speed>2||![4,6,7,8,10].includes(keyCount))return fail('공통 플레이 설정을 다시 확인해 주세요.');
-     room.track=track;room.youtube=youtube;room.level=input.level as State['level'];room.mode=input.mode as State['mode'];room.playbackRate=playbackRate;room.speed=speed;room.keyCount=keyCount;room.players.forEach(p=>p.ready=false);break;
+     const track=Number(input.track),youtube=input.youtube===null||input.youtube===undefined?null:Number(input.youtube),playbackRate=Number(input.playbackRate),keyCount=Number(input.keyCount);
+     if((youtube===null?(!Number.isInteger(track)||!tracks[track]):!youtubeReady(youtube))||!['easy','normal','hard'].includes(String(input.level))||!['coop','battle'].includes(String(input.mode))||!Number.isFinite(playbackRate)||playbackRate<.5||playbackRate>1.5||![4,6,7,8,10].includes(keyCount))return fail('공통 플레이 설정을 다시 확인해 주세요.');
+     room.track=track;room.youtube=youtube;room.level=input.level as State['level'];room.mode=input.mode as State['mode'];room.playbackRate=playbackRate;room.keyCount=keyCount;room.players.forEach(p=>p.ready=false);break;
     }
     case 'kick':{
      if(me!==room.host)return fail('방장만 강퇴할 수 있어요.',403);if(room.startedAt)return fail('합주 중에는 강퇴할 수 없어요.',409);
