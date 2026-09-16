@@ -7,7 +7,7 @@ export const tracks = [
   {id:4,title:'Apex Pursuit',subtitle:'Chase the summit',genre:'DRUM & BASS',bpm:170,beatOffset:.24,duration:181.527,audio:'/audio/apex-pursuit.mp4',color:'#ff92b8',tag:'FINAL PUSH',story:'정점을 향한 마지막 추격. 멈추면 박자가 먼저 도망간다.',melody:[7,3,0,10,7,14,12,7]},
 ] as const satisfies readonly Track[];
 export type Difficulty = 'easy'|'normal'|'hard';
-export type Note = {t:number;lane:number;hit?:boolean;miss?:boolean;extra?:boolean};
+export type Note = {t:number;lane:number;endT?:number;hit?:boolean;miss?:boolean;extra?:boolean;holding?:boolean};
 export const duration = (t:Track) => t.duration;
 export const keyLabel = (s:string) => s === 'Space' ? 'SPACE' : s.replace('Key','').replace('Digit','').replace('Arrow','↗ ').replace('Numpad','NUM ');
 export function chart(track:Track, level:Difficulty, lanes=4):Note[] {
@@ -16,9 +16,11 @@ export function chart(track:Track, level:Difficulty, lanes=4):Note[] {
   for(let step=8;step<finalStep;step++) {
     if(level==='easy' && step%2)continue;
     if(level==='normal' && step%8===7)continue;
-    const phrase=step%32;
-    const lane=(track.melody[phrase%8]+Math.floor(phrase/8)+track.id)%lanes;
-    notes.push({t:track.beatOffset+step*beat/2,lane});
+    const section=Math.floor(step/32),phrase=step%32;
+    const lane=(track.melody[(phrase+section*3)%track.melody.length]+Math.floor(phrase/8)+section*2+track.id)%lanes;
+    const t=track.beatOffset+step*beat/2;
+    const hold=step>16&&phrase%16===4&&section%3===1;
+    notes.push({t,lane,...(hold?{endT:t+beat*(level==='hard'?1.5:1)}:{})});
     if(level==='hard' && step%8===0)notes.push({t:track.beatOffset+step*beat/2,lane:(lane+Math.max(2,Math.floor(lanes/2)))%lanes});
   }
   return notes;
