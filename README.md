@@ -42,10 +42,10 @@ node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1
 
 ## 음원
 
-외부 음원이나 샘플을 내려받지 않습니다. 이 프로젝트를 위해 작성한 5개의 멜로디·코드 진행·리듬을 Web Audio로 합성합니다. 별도 음악 생성 서비스를 사용하지 않았으며, YouTube Music 한국 TOP20은 포함하지 않았습니다.
+외부 음원이나 샘플을 내려받지 않습니다. 기존 5곡은 이 프로젝트를 위해 작성한 멜로디·코드 진행·리듬을 Web Audio로 합성하고, 추가 4곡은 AI로 생성한 MP4 음원을 재생합니다. YouTube Music 한국 TOP20은 포함하지 않았습니다.
 
 `lib/tracks.ts`: 곡별 BPM, 멜로디, 코드와 결정적 채보.
-`lib/audio.ts`: 킥, 하이햇, 베이스, 패드, 리드의 오디오 스케줄러.
+`lib/audio.ts`: MP4를 HTMLAudioElement로 재생하고 Web Audio 게인 노드에 연결하는 재생·시계 래퍼.
 
 ## 멀티 저장 및 접근
 

@@ -114,7 +114,7 @@ export default function Studio(){
 <div className="panel-heading">
 <h2>
 <Music2 size={17}/> 오늘의 이슈</h2>
-<span>{library==='original'?'05 TRACKS':'TOP 20'}</span>
+<span>{library==='original'?'09 TRACKS':'TOP 20'}</span>
 </div>
 <Tabs value={library} onValueChange={v=>setLibrary(v as 'original'|'youtube')}>
 <TabsList className="library-tabs">
@@ -140,7 +140,7 @@ export default function Studio(){
 <span className="mini-disc"/>
 <div>
 <b>ORIGINAL SOUNDTRACK</b>
-<p>이 합주를 위해 만든 5개의 비트</p>
+<p>이 합주를 위해 만든 9개의 비트</p>
 </div>
 <Headphones size={18}/>
 </div>
